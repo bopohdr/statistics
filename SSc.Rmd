@@ -1,0 +1,267 @@
+---
+title: "SSc"
+author: "BOPOHDR"
+date: "11/13/2021"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+#Systemic Sclerosis statistics  
+##Legend  
+  PNP = perifērā neiropātija  
+  SNP = smalko šķiedru neiropātija  
+
+#Read data in
+```{r warning = FALSE, message = FALSE}
+ssc <- read.table("SSc_PNP.txt", header=TRUE)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(stringr)
+library(ggpubr)
+library(cocor)
+library(rmarkdown)
+library(knitr)
+```
+
+#Evaluate normality of the data
+```{r warning = FALSE, message = FALSE}
+shp_vecums <- shapiro.test(ssc$vecums)
+shp_total <- shapiro.test(ssc$Total)
+shp_DN4 <- shapiro.test(ssc$DN4_total)
+shp_GAD7 <- shapiro.test(ssc$GAD.7_total)
+shp_HAQDI <- shapiro.test(ssc$HAQDI)
+shp_Rodnan <- shapiro.test(ssc$Rodnan)
+shp_ilgums <- shapiro.test(ssc$saslim_anas_ilgums_.gadi.)
+rbind(shp_vecums,shp_total,shp_DN4,shp_GAD7,shp_HAQDI,shp_Rodnan,shp_ilgums)
+
+ssc %>% ggplot(aes(vecums))+geom_density()
+ssc %>% ggplot(aes(Total))+geom_density()
+ssc %>% ggplot(aes(DN4_total))+geom_density()
+ssc %>% ggplot(aes(GAD.7_total))+geom_density()
+ssc %>% ggplot(aes(HAQDI))+geom_density()
+ssc %>% ggplot(aes(Rodnan))+geom_density()
+ssc %>% ggplot(aes(saslim_anas_ilgums_.gadi.))+geom_density()
+
+```
+**In conclusion, all continuous data are not-normally distributed**
+---
+
+
+#Evaluate if GAD7 and DN4 corelate
+```{r warning = FALSE, message = FALSE}
+cor(ssc$DN4_total,ssc$GAD.7_total,use='pairwise.complete.obs')
+ssc %>% ggplot(aes(DN4_total,GAD.7_total))+geom_point()+geom_smooth(method=lm)+stat_cor(method = "spearman")
+
+```
+**In conclusion, DN4 and GAD7 have only moderate corelation, so will be evaluated separately**
+
+--- 
+
+#Descriptives
+
+##Vecums start PNP
+
+```{r warning = FALSE, message = FALSE}
+pnp_vecums_tabula <- ssc %>% group_by(PNP_0.nav_1.ir) %>% summarize(
+                                                          count = table(PNP_0.nav_1.ir),
+                                                             mean = mean(vecums),
+                                                             SD = sd(vecums),
+                                                             median = median(vecums),
+                                                             IQR = IQR(vecums))
+
+pnp_vecums_tabula
+
+```
+
+
+##Vecums starp SNP 
+```{r warning = FALSE, message = FALSE}
+snp_vecums_tabula <- ssc %>% group_by(smalku___iedru_NP_0.nav_1.ir) %>% summarize(
+                                                          count = table(smalku___iedru_NP_0.nav_1.ir),
+                                                             mean = mean(vecums),
+                                                             SD = sd(vecums),
+                                                             median = median(vecums),
+                                                             IQR = IQR(vecums))
+
+snp_vecums_tabula
+
+```
+
+##Dzimuma sadalījums PNP un SNP
+```{r warning = FALSE, message = FALSE}
+dzimumatabula_pnp<-table(ssc$PNP_0.nav_1.ir,ssc$dzimums_0.v_rietis_1.sieviete,dnn=c("dzimums_0.v_rietis_1.sieviete","PNP_0.nav_1.ir"))
+dzimumatabula_snp <- table(ssc$smalku___iedru_NP_0.nav_1.ir,ssc$dzimums_0.v_rietis_1.sieviete,dnn=c("dzimums_0.v_rietis_1.sieviete","smalku___iedru_NP_0.nav_1.ir"))
+
+dzimumatabula_pnp_snp <- rbind(dzimumatabula_pnp,dzimumatabula_snp)
+colnames(dzimumatabula_pnp_snp)<-c("male","female")
+rownames(dzimumatabula_pnp_snp)<-c("pnp nav","pnp ir","snp nav","snp ir")
+dzimumatabula_pnp_snp
+
+```
+
+#PNP/SNP risks
+## Dzimuma saistība ar PNP un SNP prevalenci
+
+```{r warning = FALSE, message = FALSE}
+chi_pnp <- chisq.test(dzimumatabula_pnp)
+chi_snp <- chisq.test(dzimumatabula_snp)
+chi_pnp_snp <- rbind(chi_pnp,chi_snp)
+chi_pnp_snp[,c(3,4,5)]
+```
+**In conclusion, dzimums nav saistīts ar PNP vai SNP**
+
+##PNP risks ar vecumu ilgumu
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$PNP_0.nav_1.ir~as.numeric(ssc$vecums))
+ssc %>% ggplot(aes(as.factor(PNP_0.nav_1.ir),vecums,fill=as.factor(PNP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+**In conclusion, Pacienti ar PNP ir nedaudz vecāki (skat augstāk tabulu), bet starpība nav statistiski ticama**
+
+##SNP risks ar vecumu ilgumu
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$smalku___iedru_NP_0.nav_1.ir~as.numeric(ssc$vecums))
+ssc %>% ggplot(aes(as.factor(smalku___iedru_NP_0.nav_1.ir),vecums,fill=as.factor(smalku___iedru_NP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+**In conclusion, Pacienti ar SNP ir nedaudz jaunāki (skat augstāk tabulu), bet starpība nav statistiski ticama**
+
+##PNP risks ar vecumu ilgumu
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$PNP_0.nav_1.ir~as.numeric(ssc$saslim_anas_ilgums_.gadi.))
+ssc %>% ggplot(aes(as.factor(PNP_0.nav_1.ir),saslim_anas_ilgums_.gadi.,fill=as.factor(PNP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+
+##SNP risks ar vecumu ilgumu
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$smalku___iedru_NP_0.nav_1.ir~as.numeric(ssc$saslim_anas_ilgums_.gadi.))
+ssc %>% ggplot(aes(as.factor(smalku___iedru_NP_0.nav_1.ir),saslim_anas_ilgums_.gadi.,fill=as.factor(smalku___iedru_NP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+**In conclusion, PNP un SNP nav saistīti ar saslimšanas ilgumu**
+
+##PNP risks ar vecumu ilgumu
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$PNP_0.nav_1.ir~as.numeric(ssc$Rodnan))
+ssc %>% ggplot(aes(as.factor(PNP_0.nav_1.ir),Rodnan,fill=as.factor(PNP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+##SNP risks ar vecumu ilgumu
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$smalku___iedru_NP_0.nav_1.ir~as.numeric(ssc$Rodnan))
+ssc %>% ggplot(aes(as.factor(smalku___iedru_NP_0.nav_1.ir),Rodnan,fill=as.factor(smalku___iedru_NP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+**In conclusion, PNP un SNP nav saistīti ar slimības smagumu pēc Rodnan**
+
+##PNP un SNP saistība ar Reino
+```{r warning = FALSE, message = FALSE}
+Reino_pnp<-table(ssc$PNP_0.nav_1.ir,ssc$Reino_sindroms_0.nav_1.ir,dnn=c("Reino_sindroms_0.nav_1.ir","PNP_0.nav_1.ir"))
+Reino_snp <- table(ssc$smalku___iedru_NP_0.nav_1.ir,ssc$Reino_sindroms_0.nav_1.ir,dnn=c("Reino_sindroms_0.nav_1.ir","smalku___iedru_NP_0.nav_1.ir"))
+
+Reino_pnp_snp <- rbind(Reino_pnp,Reino_snp)
+colnames(Reino_pnp_snp)<-c("Nav","Reino")
+rownames(Reino_pnp_snp)<-c("pnp nav","pnp ir","snp nav","snp ir")
+Reino_pnp_snp
+chi_pnp_Reino <- fisher.test(Reino_pnp)
+chi_snp_Reino <- fisher.test(Reino_snp)
+chi_pnp_snp_Reino <- rbind(chi_pnp_Reino,chi_snp_Reino)
+chi_pnp_snp_Reino[,c(1,5,6,7)]
+```
+**In conclusion, Reino fenomens nav saistīts ar PNP/SNP esamību**
+
+---
+
+#PNP/SNP saistīb ar HAQDI, DN4 un GAD7
+
+## PNP saistība ar HAQDI
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$PNP_0.nav_1.ir~as.numeric(ssc$HAQDI))
+ssc %>% ggplot(aes(as.factor(PNP_0.nav_1.ir),HAQDI,fill=as.factor(PNP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+
+## SNP saistība ar HAQDI
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$smalku___iedru_NP_0.nav_1.ir~as.numeric(ssc$HAQDI))
+ssc %>% ggplot(aes(as.factor(smalku___iedru_NP_0.nav_1.ir),HAQDI,fill=as.factor(smalku___iedru_NP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+**HAQDI neatšķirās starp pacientiem ar PNP/SNP un bez**
+
+## PNP saistība ar DN4
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$PNP_0.nav_1.ir~as.numeric(ssc$DN4_total))
+ssc %>% ggplot(aes(as.factor(PNP_0.nav_1.ir),DN4_total,fill=as.factor(PNP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+
+## SNP saistība ar DN4
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$smalku___iedru_NP_0.nav_1.ir~as.numeric(ssc$DN4_total))
+ssc %>% ggplot(aes(as.factor(smalku___iedru_NP_0.nav_1.ir),DN4_total,fill=as.factor(smalku___iedru_NP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+
+## PNP saistība ar GAD7
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$PNP_0.nav_1.ir~as.numeric(ssc$GAD.7_total))
+ssc %>% ggplot(aes(as.factor(PNP_0.nav_1.ir),GAD.7_total
+                   ,fill=as.factor(PNP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+
+## SNP saistība ar GAD7
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$smalku___iedru_NP_0.nav_1.ir~as.numeric(ssc$GAD.7_total))
+ssc %>% ggplot(aes(as.factor(smalku___iedru_NP_0.nav_1.ir),GAD.7_total,fill=as.factor(smalku___iedru_NP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+**DN4 un GAD7 neatšķirās starp pacientiem ar PNP/SNP un bez**
+
+## PNP saistība ar Total TNS
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$PNP_0.nav_1.ir~as.numeric(ssc$Total))
+ssc %>% ggplot(aes(as.factor(PNP_0.nav_1.ir),Total,fill=as.factor(PNP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+
+## SNP saistība ar HAQDI
+```{r warning = FALSE, message = FALSE}
+kruskal.test(ssc$smalku___iedru_NP_0.nav_1.ir~as.numeric(ssc$Total))
+ssc %>% ggplot(aes(as.factor(smalku___iedru_NP_0.nav_1.ir),Total,fill=as.factor(smalku___iedru_NP_0.nav_1.ir)))+geom_boxplot(width=0.5)
+```
+**Nav ticamas starpības starp TMS un PNP/SNP esamību??? kā?**
+
+---
+
+#Total TNS saistība ar HAQDI, DN4 un GAD7
+
+##TNS saistība ar HAQDI
+```{r warning = FALSE, message = FALSE}
+cor(ssc$Total,ssc$HAQDI,use='pairwise.complete.obs')
+ssc %>% ggplot(aes(Total,HAQDI))+geom_point()+geom_smooth(method=lm)+stat_cor(method = "spearman")
+```
+**Augstāks total TNS saistīts ar lielāku HAQDI (vai tas nozīmē, ka smagāka neiropātija = labāka dzīves kvalitāte????? vai lielāks HAQDI nozīmē, ka ir sliktāk?)**
+
+##TNS saistība ar DN4
+```{r warning = FALSE, message = FALSE}
+cor(ssc$Total,ssc$DN4_total,use='pairwise.complete.obs')
+ssc %>% ggplot(aes(Total,DN4_total))+geom_point()+geom_smooth(method=lm)+stat_cor(method = "spearman")
+```
+
+##TNS saistība ar GAD7
+```{r warning = FALSE, message = FALSE}
+cor(ssc$Total,ssc$GAD.7_total,use='pairwise.complete.obs')
+ssc %>% ggplot(aes(Total,GAD.7_total))+geom_point()+geom_smooth(method=lm)+stat_cor(method = "spearman")
+```
+**TNS ir vidēji spēcīgā saistība ar DN4 un vāja saistība ar GAD7 (makes sense, pareizi? smagāka neiropātija=augstāka neiropātiskās sāpes)**
+
+---
+
+#Total DN4/GAD7 saistība ar HAQDI
+
+##DN4 saistība ar HAQDI
+```{r warning = FALSE, message = FALSE}
+cor(ssc$DN4_total,ssc$HAQDI,use='pairwise.complete.obs')
+ssc %>% ggplot(aes(DN4_total,HAQDI))+geom_point()+geom_smooth(method=lm)+stat_cor(method = "spearman")
+```
+**Vidēji stipra saistība starp DN4 un HAQDI**
+
+##GAD7 saistība ar HAQDI
+```{r warning = FALSE, message = FALSE}
+cor(ssc$GAD.7_total,ssc$HAQDI,use='pairwise.complete.obs')
+ssc %>% ggplot(aes(GAD.7_total,HAQDI))+geom_point()+geom_smooth(method=lm)+stat_cor(method = "spearman")
+```
+**Vidēji stipra saistība starp GAD7 un HAQDI**
+
